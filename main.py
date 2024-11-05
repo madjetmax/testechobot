@@ -1,6 +1,9 @@
+from contextlib import asynccontextmanager
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, FSInputFile
-import asyncio
+import asyncio, uvicorn, sys
+from fastapi import FastAPI
+
 
 BOT_TOKEN = '7300396047:AAFGX8tkQVz22Mk8MUiPfJwOJucniVaOiIY'
 
@@ -8,17 +11,14 @@ BOT_TOKEN = '7300396047:AAFGX8tkQVz22Mk8MUiPfJwOJucniVaOiIY'
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-@dp.message(F.text)
+@dp.message()
 async def echo(message: Message):
     await message.answer(message.text)
 
 
-async def main():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     print('bot launched')
     await dp.start_polling(bot, skip_updates=True)
-    
-if __name__ == '__main__':
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("bot stoped!")
+    yield
+app = FastAPI(lifespan=lifespan)
