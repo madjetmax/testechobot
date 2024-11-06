@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 # from config import *
 
 BOT_TOKEN = "7420378524:AAF4bu7Zz6KYJVLF5esOmHK-7ID7XRAZBoA"
-TUNEL_TOKEN = 'https://hm-bot.onrender.com'
+TUNEL_TOKEN = 'https://testechobot.onrender.com'
 
 WEBHOOK_PATH = f"/bot/{BOT_TOKEN}"
 WEBHOOK_URL = f"{TUNEL_TOKEN}{WEBHOOK_PATH}"
