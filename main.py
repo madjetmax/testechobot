@@ -10,12 +10,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
 import uvicorn
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import aiohttp
 
 from contextlib import asynccontextmanager
 # from config import *
 
 BOT_TOKEN = "7420378524:AAF4bu7Zz6KYJVLF5esOmHK-7ID7XRAZBoA"
-TUNEL_TOKEN = 'https://testechobot.onrender.com'
+TUNEL_TOKEN = 'https://hm-bot.onrender.com'
 
 WEBHOOK_PATH = f"/bot/{BOT_TOKEN}"
 WEBHOOK_URL = f"{TUNEL_TOKEN}{WEBHOOK_PATH}"
@@ -24,8 +26,11 @@ WEBHOOK_URL = f"{TUNEL_TOKEN}{WEBHOOK_PATH}"
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
+scheduler = AsyncIOScheduler()
 
-
+async def alarm():
+    async with aiohttp.ClientSession() as session:
+        await session.get(TUNEL_TOKEN)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -34,6 +39,8 @@ async def lifespan(app: FastAPI):
         allowed_updates=dp.resolve_used_update_types(),
         drop_pending_updates=True
     )
+    scheduler.add_job(alarm, 'interval', minutes=50, seconds=0, id='job1')
+
     yield
     await bot.delete_webhook()
 
