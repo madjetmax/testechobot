@@ -34,13 +34,14 @@ async def alarm():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    scheduler.start()
+    scheduler.add_job(alarm, 'interval', minutes=50, seconds=0, id='job1')
     await bot.set_webhook(
         url=WEBHOOK_URL, 
         allowed_updates=dp.resolve_used_update_types(),
         drop_pending_updates=True
     )
-    scheduler.start()
-    scheduler.add_job(alarm, 'interval', minutes=50, seconds=0, id='job1')
+   
 
     yield
     await bot.delete_webhook()
