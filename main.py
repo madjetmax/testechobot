@@ -1,106 +1,73 @@
-import aiogram, asyncio, logging
-import aiogram.filters
-from config import *
+import logging
+from aiogram.client.default import DefaultBotProperties
 from aiogram import Bot, Dispatcher, F
-from aiogram.types import (Message,
-InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery)
-
-from aiogram.fsm.state import StatesGroup, State
-from aiogram.fsm.context import FSMContext
-import schedule
-import aioschedule
-import time
+from aiogram.types import Message, Update
+from aiogram.filters import CommandStart
+from aiogram.enums import ParseMode
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.requests import Request
+import uvicorn
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import aiohttp
 
-# from apscheduler.triggers.combining import OrTrigger
-# from apscheduler.triggers.cron import CronTrigger
+from contextlib import asynccontextmanager
+# from config import *
 
-bot = Bot(token=API_KEY)
-dp = Dispatcher() 
+BOT_TOKEN = "7420378524:AAF4bu7Zz6KYJVLF5esOmHK-7ID7XRAZBoA"
+TUNEL_TOKEN = 'https://hm-bot.onrender.com'
+
+WEBHOOK_PATH = f"/bot/{BOT_TOKEN}"
+WEBHOOK_URL = f"{TUNEL_TOKEN}{WEBHOOK_PATH}"
+
+
+
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
 scheduler = AsyncIOScheduler()
 
-async def send(text):
-    await bot.send_message(text=text, chat_id=859261869)
+async def alarm():
+    async with aiohttp.ClientSession() as session:
+        await session.get(TUNEL_TOKEN)
 
-
-rass_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='+', callback_data='plus'),
-     InlineKeyboardButton(text='-', callback_data='minus')
-    ],[InlineKeyboardButton(text='start', callback_data='start')]
-])
-
-stop_rass_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='stop', callback_data='stop')]
-])
-class TestState(StatesGroup):
-    time = State()
-
-
-@dp.message(F.text == 'da')
-async def start_rozsylka(message: Message, state: FSMContext):
-    await message.answer(f'result: 0', reply_markup=rass_keyboard)
-    scheduler.add_job(send, 'cron',day_of_week='mon-sat', hour=17, minute=35,second=20, args=('da',), id='jod1')
-    
-@dp.callback_query()
-async def callb(callback: CallbackQuery, state: FSMContext):
-    # if callback.data == 'plus':
-    #     await state.set_state(TestState.time)
-    #     cur_time = await state.get_data()
-    #     cur_time = int(cur_time.get('time'))
-    #     await state.update_data(time=str(cur_time + 1))
-    #     data = await state.get_data()
-    #     await callback.message.edit_text(text=f'result {data.get('time')}', reply_markup=rass_keyboard)
-    #     await callback.answer('')
-    
-    
-    # if callback.data == 'minus':
-        
-    #     await state.set_state(TestState.time)
-    #     cur_time = await state.get_data()
-    #     cur_time = int(cur_time.get('time'))
-    #     await state.update_data(time=str(cur_time - 1))
-    #     data = await state.get_data()
-    #     await callback.message.edit_text(text=f'result {data.get('time')}', reply_markup=rass_keyboard)
-    #     await callback.answer('')
-
-    if callback.data == 'plus':
-        cur_time = callback.message.text.replace('result: ', '')
-        # print(cur_time)
-        time = int(cur_time) + 1
-        await callback.message.edit_text(text=f'result: {time}', reply_markup=rass_keyboard)
-        await callback.answer('')
-
-    if callback.data == 'minus':
-        cur_time = callback.message.text.replace('result: ', '')
-        # print(cur_time)
-        time = int(cur_time) - 1
-        await callback.message.edit_text(text=f'result: {time}', reply_markup=rass_keyboard)
-        await callback.answer('')
-    if callback.data == 'start':
-        interval = callback.message.text.replace('result: ', '')
-        await callback.message.edit_text(f'started rass with {interval}s interval', reply_markup=stop_rass_keyboard)
-        scheduler.add_job(send, 'interval', seconds=int(interval), args=('dadada',), id='job1')
-
-    if callback.data == 'stop':
-        scheduler.remove_job('job1')
-
-
-@dp.message(F.text == 'stop')
-
-async def start_rozsylka(message: Message):
-    await message.answer('finished!')
-    scheduler.remove_job('job1')
-
-
-async def main():
-
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await bot.set_webhook(
+        url=WEBHOOK_URL, 
+        allowed_updates=dp.resolve_used_update_types(),
+        drop_pending_updates=True
+    )
     scheduler.start()
-    await dp.start_polling(bot)
-if __name__ == '__main__':
-    # logging.basicConfig(level=logging.INFO)
-    print('bot launched!')
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-    
-        print('bot stopped!')
+    scheduler.add_job(alarm, 'interval', minutes=50, seconds=0, id='job1')
+
+    yield
+    await bot.delete_webhook()
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+
+
+@app.post(WEBHOOK_PATH)
+async def webhook(request: Request):
+    update = Update.model_validate(await request.json(), context={"bot": bot})
+    await dp.feed_update(bot, update)
+
+
+@dp.message()
+async def statr(message: Message):
+    await message.answer(message.text)
+
+
+
+
+
+
+# if __name__ == "__main__":
+#     try:
+#         uvicorn.run(app, host="0.0.0.0", port=8000)
+#     except KeyboardInterrupt:
+#         print("stoped!")
